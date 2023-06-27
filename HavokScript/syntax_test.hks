@@ -1,0 +1,15 @@
+-- SYNTAX TEST "Packages/HavokScript/HavokScript.sublime-syntax"
+
+hstructure S
+-- <- meta.hstructure.lua keyword.declaration.hstructure.lua
+--         ^ meta.name.hstructure.lua entity.name.hstructure.lua
+	o:object;
+--    ^ storage.type
+end
+-- <- meta.hstructure.lua
+
+local s:S = hmake S {};
+--          ^ keyword.declaration.new
+
+local n:number;
+--      ^ storage.type

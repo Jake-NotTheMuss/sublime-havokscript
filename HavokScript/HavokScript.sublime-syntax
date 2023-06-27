@@ -1,0 +1,187 @@
+%YAML 1.2
+---
+# http://www.sublimetext.com/docs/3/syntax.html
+
+name: Havok Script
+file_extensions:
+  - hks
+first_line_match: |-
+  (?ix:
+    ^ .*? -- .*? -\*- .*? \bhavok[ \t]*script\b .*? -\*- .* |
+    # invoking a havokscript-specific feature
+    (?: ^.* \b (?: hstructure | hmake | hpairs ) \b ) |
+    # comment with Havok Script signature
+    (?: ^.* -- .* \b (?i: hks | havok[ \t]*script ) \b )
+  )
+version: 2
+scope: source.lua.hks
+extends: Packages/Lua/Lua.sublime-syntax
+
+variables:
+  reserved_word: |-
+    (?x:(?:
+      and|break|do|elseif|else|end|false|for|function|goto|if|in|
+      local|nil|not|or|repeat|return|then|true|until|while|
+      hstructure
+    ){{identifier_break}})
+
+  builtin_types: |-
+    (?x:
+      object|boolean|number|luserdata|string|table|userdata|thread|cfunction|
+      ifunction|ui64
+    )
+
+
+contexts:
+  hstructure-meta:
+    - meta_scope: meta.hstructure.lua
+    - include: immediately-pop
+
+  hmake:
+    - match: hmake{{identifier_break}}
+      scope: keyword.declaration.new.hks
+      push: expression-list
+
+  statements:
+    - match: ;
+      scope: punctuation.terminator.statement.lua
+
+    - match: function{{identifier_break}}
+      scope: keyword.declaration.function.lua
+      push:
+        - function-meta
+        - block-contents
+        - function-parameter-list
+        - function-name
+
+    - match: hstructure{{identifier_break}}
+      scope: keyword.declaration.hstructure.lua
+      push:
+        - hstructure-meta
+        - block-contents
+        - hstructure-name
+
+    - include: control-statements
+
+    - match: break{{identifier_break}}
+      scope: keyword.control.break.lua
+
+    - match: return{{identifier_break}}
+      scope: keyword.control.return.lua
+      push: expression-list
+
+    - match: local{{identifier_break}}
+      scope: storage.modifier.lua
+      push: expression-list
+
+    - include: hmake
+
+    - match: end{{identifier_break}}
+      scope: invalid.illegal.unexpected-end.lua
+
+    - match: (?=\S)
+      push: expression
+
+  expression-begin:
+    - match: (?=;)
+      pop: 1
+
+    - include: prefix-operator
+    - include: builtin
+    - include: hmake
+    - include: support
+    - include: variable
+    - include: number
+    - include: string
+    - include: parenthesized-expression
+    - include: table-constructor
+    - include: function-literal
+
+    - include: else-pop
+
+  function-parameter-list:
+    - match: \(
+      scope: punctuation.section.group.begin.lua
+      set:
+        - meta_scope: meta.group.lua
+        - match: \)
+          scope: punctuation.section.group.end.lua
+          pop: 1
+        - match: ','
+          scope: punctuation.separator.comma.lua
+        - include: reserved-word-pop
+        - match: '({{identifier}})(?:\s*(:)\s*(?:({{builtin_types}})|(?:{{identifier}}))\b)?'
+          captures:
+            1: variable.parameter.function.lua
+            2: punctuation.separator.hks
+            3: storage.type.hks
+        - match: \.\.\.
+          scope: constant.language.lua
+    - include: else-pop
+
+  hstructure-name:
+    - match: (?=\S)
+      set: [ hstructure-name-end, hstructure-name-begin ]
+
+  hstructure-name-end:
+    - meta_scope: meta.name.hstructure.lua
+    - include: else-pop
+
+  hstructure-name-begin:
+    - match: '{{identifier}}(?=\s*[.:])'
+      scope: variable.other.lua
+      pop: 1
+    - match: '{{identifier}}'
+      scope: entity.name.hstructure.lua
+      pop: 1
+    - include: else-pop
+
+  variable:
+    - match: '{{identifier}}(?:\s*(:)\s*(?:({{builtin_types}})|(?:{{identifier}}))\b)?{{function_assignment_ahead}}'
+      scope: entity.name.function.lua
+      captures:
+        1: punctuation.separator.hks
+        2: storage.type.hks
+      pop: 1
+
+    - match: '{{identifier}}(?:\s*(:)\s*(?:({{builtin_types}})|(?:{{identifier}}))\b)?{{function_call_ahead}}'
+      scope: meta.function-call.lua variable.function.lua
+      captures:
+        1: punctuation.separator.hks
+        2: storage.type.hks
+      pop: 1
+
+    - match: '{{identifier}}(?:\s*(:)\s*(?:({{builtin_types}})|(?:{{identifier}}))\b)?'
+      scope: variable.other.lua
+      captures:
+        1: punctuation.separator.hks
+        2: storage.type.hks
+      pop: 1
+
+  number:
+    - match: (0[Xx])(\h*(?:(\.)\h*{{hex_exponent}}?|{{hex_exponent}}))
+      scope: meta.number.float.hexadecimal.lua
+      captures:
+        1: constant.numeric.base.lua
+        2: constant.numeric.value.lua
+        3: punctuation.separator.decimal.lua
+      pop: 1
+
+    - match: (0[Xx])(\h+)([Hh][IiLl])?
+      scope: meta.number.integer.hexadecimal.lua
+      captures:
+        1: constant.numeric.base.lua
+        2: constant.numeric.value.lua
+        3: storage.type.lua
+      pop: 1
+
+    - match: \d+(?:(\.)\d*{{dec_exponent}}?|{{dec_exponent}})|(\.)\d+{{dec_exponent}}?
+      scope: meta.number.float.decimal.lua constant.numeric.value.lua
+      captures:
+        1: punctuation.separator.decimal.lua
+        2: punctuation.separator.decimal.lua
+      pop: 1
+
+    - match: \d+
+      scope: meta.number.integer.decimal.lua constant.numeric.value.lua
+      pop: 1
